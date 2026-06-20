@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>2D World AI</title>
+<style>
+body{margin:0;font-family:Arial;background:#070014;color:white;text-align:center}
+.app{max-width:900px;margin:15px auto;background:#111;padding:15px;border-radius:20px}
+canvas{background:#222;border-radius:15px;max-width:100%}
+button,input{padding:10px;margin:5px;border:0;border-radius:10px}
+button{background:#ff008c;color:white}
+#chat{height:170px;overflow:auto;background:#222;padding:10px;border-radius:12px;text-align:left}
+.bot,.user{margin:8px;padding:8px;border-radius:10px}
+.bot{background:#ffdd00;color:#111}
+.user{background:#00eaff;color:#111;text-align:right}
+</style>
+</head>
+<body>
+
+<div class="app">
+<h1>🎪 2D Image World AI</h1>
+
+<input type="file" id="imageInput" accept="image/*">
+<button onclick="generateWorld()">Make 2D World</button>
+<button onclick="randomWorld()">Random World</button>
+
+<br>
+<canvas id="game" width="640" height="360"></canvas>
+
+<p>Move: WASD or arrow keys</p>
+
+<div id="chat">
+<div class="bot">Upload an image, then I will turn it into a 2D world!</div>
+</div>
+
+<input id="textInput" placeholder="Ask the world AI...">
+<button onclick="send()">Send</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const imageInput = document.getElementById("imageInput");
+const chat = document.getElementById("chat");
+const textInput = document.getElementById("textInput");
+
+let keys = {};
+let tiles = [];
+let objects = [];
+let player = {x:300,y:170,w:20,h:20};
+let worldName = "Empty World";
+let theme = "circus";
+let mainColor = {r:120,g:70,b:200};
+
+const tileSize = 32;
+const cols = 20;
+const rows = 11;
+
+function add(text,type){
+  const div=document.createElement("div");
+  div.className=type;
+  div.textContent=text;
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+function rand(n){return Math.floor(Math.random()*n)}
+function rgb(c){return "rgb("+c.r+","+c.g+","+c.b+")"}
+
+function analyzeImage(callback){
+  const file = imageInput.files[0];
+  if(!file){callback(null);return;}
+
+  const img = new Image();
+  const temp = document.createElement("canvas");
+  const tctx = temp.getContext("2d");
+
+  img.onload = function(){
+    temp.width = 80;
+    temp.height = 80;
+    tctx.drawImage(img,0,0,80,80);
+    const data = tctx.getImageData(0,0,80,80).data;
+
+    let r=0,g=0,b=0,count=0,bright=0;
+
+    for(let i=0;i<data.length;i+=4){
+      r+=data[i];
+      g+=data[i+1];
+      b+=data[i+2];
+      bright+=(data[i]+data[i+1]+data[i+2])/3;
+      count++;
+    }
+
+    r=Math.floor(r/count);
+    g=Math.floor(g/count);
+    b=Math.floor(b/count);
+    bright=Math.floor(bright/count);
+
+    callback({r,g,b,bright});
+  };
+
+  img.src = URL.createObjectURL(file);
+}
+
+function generateWorld(){
+  analyzeImage(function(color){
+    if(color){
+      mainColor = color;
+
+      if(color.b > color.r && color.b > color.g) theme = "dream ocean arcade";
+      else if(color.g > color.r && color.g > color.b) theme = "glowing forest circus";
+      else if(color.r > color.g && color.r > color.b) theme = "danger carnival";
+      else theme = "glitch circus";
+
+      if(color.bright < 80) theme = "dark backrooms maze";
+      if(color.bright > 190) theme = "bright candy circus";
+    }
+
+    buildWorld();
+    add("I generated a 2D world: " + worldName, "bot");
+  });
+}
+
+function randomWorld(){
+  mainColor = {
+    r:rand(255),
+    g:rand(255),
+    b:rand(255)
+  };
+  const themes=["glitch circus","backrooms maze","candy carnival","pixel forest","dream arcade"];
+  theme = themes[rand(themes.length)];
+  buildWorld();
+  add("Random 2D world generated: " + worldName, "bot");
+}
+
+function buildWorld(){
+  worldName = "The " + theme;
+
+  tiles = [];
+  objects = [];
+
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      let type = "floor";
+
+      if(x===0 || y===0 || x===cols-1 || y===rows-1){
+        type = "wall";
+      } else if(Math.random() < 0.08){
+        type = "wall";
+      }
+
+      tiles.push({x,y,type});
+    }
+  }
+
+  for(let i=0;i<15;i++){
+    objects.push({
+      x:rand(cols-2)+1,
+      y:rand(rows-2)+1,
+      type:["star","door","eye","clown"][rand(4)]
+    });
+  }
+
+  player.x = 300;
+  player.y = 170;
+}
+
+function drawWorld(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  for(const tile of tiles){
+    let x = tile.x * tileSize;
+    let y = tile.y * tileSize;
+
+    if(tile.type === "wall"){
+      ctx.fillStyle = "rgb("+(mainColor.r/2)+","+(mainColor.g/2)+","+(mainColor.b/2)+")";
+    } else {
+      ctx.fillStyle = "rgb("+mainColor.r+","+mainColor.g+","+mainColor.b+")";
+    }
+
+    ctx.fillRect(x,y,tileSize,tileSize);
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.strokeRect(x,y,tileSize,tileSize);
+  }
+
+  for(const obj of objects){
+    let x = obj.x * tileSize + 16;
+    let y = obj.y * tileSize + 16;
+
+    ctx.font = "22px Arial";
+    if(obj.type === "star") ctx.fillText("⭐",x-11,y+8);
+    if(obj.type === "door") ctx.fillText("🚪",x-11,y+8);
+    if(obj.type === "eye") ctx.fillText("👁️",x-11,y+8);
+    if(obj.type === "clown") ctx.fillText("🤡",x-11,y+8);
+  }
+
+  ctx.fillStyle = "white";
+  ctx.fillRect(player.x,player.y,player.w,player.h);
+
+  ctx.fillStyle = "black";
+  ctx.font = "14px Arial";
+  ctx.fillText(worldName,10,20);
+}
+
+function isWall(px,py){
+  let tx = Math.floor(px / tileSize);
+  let ty = Math.floor(py / tileSize);
+
+  const tile = tiles.find(t=>t.x===tx && t.y===ty);
+  return tile && tile.type === "wall";
+}
+
+function movePlayer(){
+  let speed = 2;
+  let nx = player.x;
+  let ny = player.y;
+
+  if(keys["ArrowUp"] || keys["w"]) ny -= speed;
+  if(keys["ArrowDown"] || keys["s"]) ny += speed;
+  if(keys["ArrowLeft"] || keys["a"]) nx -= speed;
+  if(keys["ArrowRight"] || keys["d"]) nx += speed;
+
+  if(!isWall(nx,ny) && !isWall(nx+player.w,ny+player.h)){
+    player.x = nx;
+    player.y = ny;
+  }
+}
+
+function gameLoop(){
+  movePlayer();
+  drawWorld();
+  requestAnimationFrame(gameLoop);
+}
+
+function reply(msg){
+  msg = msg.toLowerCase();
+
+  if(msg.includes("new") || msg.includes("world")){
+    randomWorld();
+    return "A new 2D world has been created!";
+  }
+
+  if(msg.includes("where")){
+    return "You are inside " + worldName + ".";
+  }
+
+  if(msg.includes("quest")){
+    return "Quest: collect the stars, find the door, and avoid the strange eyes.";
+  }
+
+  if(msg.includes("door")){
+    return "The door may lead to another world... or just more circus nonsense.";
+  }
+
+  return "The world changes a little because you said that!";
+}
+
+function send(){
+  const text = textInput.value.trim();
+  if(!text)return;
+
+  add(text,"user");
+  textInput.value="";
+
+  setTimeout(()=>add(reply(text),"bot"),300);
+}
+
+document.addEventListener("keydown",e=>keys[e.key]=true);
+document.addEventListener("keyup",e=>keys[e.key]=false);
+
+textInput.addEventListener("keydown",e=>{
+  if(e.key==="Enter")send();
+});
+
+buildWorld();
+gameLoop();
+</script>
+
+</body>
+</html>
