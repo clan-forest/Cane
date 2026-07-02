@@ -16,7 +16,7 @@
 
   <button onclick="startCamera()">Start Camera</button>
   <button onclick="aiLook()">AI Look</button>
-
+  <button onclick="worldCamera()">AI World Camera</button>
   <div id="visionOutput" class="card">
     Camera not started.
   </div>
@@ -342,6 +342,20 @@ function aiLook(){
 
     addThought("I captured a new image from the camera.");
 
+}
+
+  function worldCamera(){
+  if(creations.length === 0){
+    addThought("I looked around my world, but it is empty.");
+    return;
+  }
+
+  let seen = creations
+    .slice(-5)
+    .map(c => c.name)
+    .join(", ");
+
+  addThought("Through my world camera, I can see: " + seen + ".");
 }
 </script>
 
