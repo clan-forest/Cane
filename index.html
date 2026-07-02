@@ -2,30 +2,12 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Creation Maker</title>
-
-<div class="box">
-  <h2>📷 AI Camera</h2>
-
-  <video id="camera" autoplay playsinline muted
-         style="width:100%;border-radius:12px;"></video>
-
-  <canvas id="vision" style="display:none;"></canvas>
-
-  <br>
-
-  <button onclick="startCamera()">Start Camera</button>
-  <button onclick="aiLook()">AI Look</button>
-  <button onclick="worldCamera()">AI World Camera</button>
-  <div id="visionOutput" class="card">
-    Camera not started.
-  </div>
-</div>
+<title>AI Creation World</title>
 
 <style>
 body{
   margin:0;
-  font-family:Arial, sans-serif;
+  font-family:Arial,sans-serif;
   background:linear-gradient(#080014,#26104d);
   color:white;
   text-align:center;
@@ -37,7 +19,7 @@ p{color:#ddd}
   margin:14px auto;
   padding:15px;
   width:90%;
-  max-width:520px;
+  max-width:540px;
   border-radius:16px;
   box-shadow:0 0 12px black;
 }
@@ -66,18 +48,33 @@ button:active{transform:scale(.96)}
   border-radius:12px;
   text-align:left;
 }
+.world{
+  background:#060612;
+  border:2px solid #8b35ff;
+  min-height:220px;
+  border-radius:15px;
+  position:relative;
+  overflow:hidden;
+}
+.thing{
+  position:absolute;
+  padding:8px;
+  background:#8b35ff;
+  border-radius:20px;
+  font-size:14px;
+}
 .small{font-size:13px;color:#bbb}
 </style>
 </head>
 
 <body>
 
-<h1>🤖 AI Creation Maker</h1>
-<p>The AI can learn, make items, see its creations, and upgrade them.</p>
+<h1>🤖 AI Creation World</h1>
+<p>The AI can learn, create items, see its world, and upgrade creations.</p>
 
 <div class="box">
   <h2>🧠 Feed the AI</h2>
-  <textarea id="feedText" placeholder="Teach it anything. Example: Make a digital circus world with magical cats, portals, crystals, and strange rooms."></textarea>
+  <textarea id="feedText" placeholder="Teach the AI something. Example: Make a magical forest with cats, crystals, portals, and secret rooms."></textarea>
   <br>
   <button onclick="feedAI()">Feed AI</button>
 </div>
@@ -94,9 +91,14 @@ button:active{transform:scale(.96)}
   <h2>⚙️ AI Buttons</h2>
   <button onclick="makeItem()">AI Make Item</button>
   <button onclick="makeIdea()">AI Make Idea</button>
-  <button onclick="seeCreations()">AI See Creations</button>
-  <button onclick="evolveCreation()">AI Upgrade Creation</button>
+  <button onclick="worldCamera()">👁️ AI World Camera</button>
+  <button onclick="evolveCreation()">Upgrade Creation</button>
   <button onclick="clearAll()">Reset</button>
+</div>
+
+<div class="box">
+  <h2>🌎 AI World</h2>
+  <div id="worldBox" class="world"></div>
 </div>
 
 <div class="box">
@@ -151,38 +153,66 @@ function random(list){
 
 function addThought(text){
   thoughts.unshift(text);
-  if(thoughts.length > 30) thoughts.pop();
+  if(thoughts.length > 30){
+    thoughts.pop();
+  }
   save();
   update();
 }
 
 function update(){
   document.getElementById("memoryBox").innerHTML =
-    memory.length ? memory.map(m=>`<div class="card">🧠 ${m}</div>`).join("") : "No memory yet.";
+    memory.length
+    ? memory.map(m => `<div class="card">🧠 ${m}</div>`).join("")
+    : "No memory yet.";
 
   document.getElementById("creationBox").innerHTML =
-    creations.length ? creations.map(c=>`
+    creations.length
+    ? creations.map(c => `
       <div class="card">
         <b>✨ ${c.name}</b>
         <p>${c.power}</p>
-        <div class="small">Created from: ${c.source}</div>
+        <div class="small">Source: ${c.source}</div>
       </div>
-    `).join("") : "No creations yet.";
+    `).join("")
+    : "No creations yet.";
 
   document.getElementById("thoughtBox").innerHTML =
-    thoughts.length ? thoughts.map(t=>`<div class="card">💭 ${t}</div>`).join("") : "No thoughts yet.";
+    thoughts.length
+    ? thoughts.map(t => `<div class="card">💭 ${t}</div>`).join("")
+    : "No thoughts yet.";
+
+  drawWorld();
+}
+
+function drawWorld(){
+  let world = document.getElementById("worldBox");
+  world.innerHTML = "";
+
+  creations.forEach((c, index) => {
+    let thing = document.createElement("div");
+    thing.className = "thing";
+    thing.innerText = c.name;
+
+    thing.style.left = ((index * 47) % 75) + "%";
+    thing.style.top = ((index * 61) % 75) + "%";
+
+    world.appendChild(thing);
+  });
 }
 
 function feedAI(){
   let text = document.getElementById("feedText").value.trim();
-  if(!text){ alert("Type something first."); return; }
+
+  if(!text){
+    alert("Type something first.");
+    return;
+  }
 
   memory.push(text);
   document.getElementById("feedText").value = "";
 
-  addThought("I learned something new: " + text);
-  save();
-  update();
+  addThought("I learned: " + text);
 }
 
 function addItem(){
@@ -204,17 +234,16 @@ function addItem(){
   document.getElementById("itemPower").value = "";
 
   addThought("I can see a new creation named " + name + ".");
-  save();
-  update();
 }
 
 function makeItem(){
-  let learned = memory.length ? random(memory) : "a mysterious world";
+  let learned = memory.length ? random(memory) : "a mysterious empty world";
 
   let name = random(words).toUpperCase() + " " + random(words).toUpperCase();
 
-  let power = "This item can " + random(powers) +
-  ". It was inspired by: " + learned;
+  let power =
+    "This item can " + random(powers) +
+    ". It was inspired by: " + learned;
 
   creations.push({
     name:name,
@@ -223,18 +252,17 @@ function makeItem(){
   });
 
   addThought("I made a new item called " + name + ".");
-  save();
-  update();
 }
 
 function makeIdea(){
   let learned = memory.length ? random(memory) : "nothing yet";
   let creation = creations.length ? random(creations).name : "a new object";
 
-  let idea = "Make a world where " + creation +
-  " connects with a " + random(words) +
-  " and can " + random(powers) +
-  ". Use this knowledge: " + learned;
+  let idea =
+    "Make a world where " + creation +
+    " connects with a " + random(words) +
+    " and can " + random(powers) +
+    ". Use this knowledge: " + learned;
 
   creations.push({
     name:"AI Idea",
@@ -242,19 +270,18 @@ function makeIdea(){
     source:"AI idea"
   });
 
-  addThought("I made an idea using my memory and my creations.");
-  save();
-  update();
+  addThought("I made an idea using my memory and creations.");
 }
 
-function seeCreations(){
+function worldCamera(){
   if(creations.length === 0){
-    addThought("I looked for creations, but I do not see any yet.");
+    addThought("👁️ I looked around my world, but it is empty.");
     return;
   }
 
-  let list = creations.map(c=>c.name).join(", ");
-  addThought("I can see my creations: " + list + ".");
+  let seen = creations.slice(-6).map(c => c.name).join(", ");
+
+  addThought("👁️ Through my world camera, I can see: " + seen + ".");
 }
 
 function evolveCreation(){
@@ -273,9 +300,7 @@ function evolveCreation(){
 
   creations.push(upgraded);
 
-  addThought("I looked at " + old.name + " and upgraded it into " + upgraded.name + ".");
-  save();
-  update();
+  addThought("I looked at " + old.name + " and upgraded it.");
 }
 
 function clearAll(){
@@ -289,90 +314,6 @@ function clearAll(){
 }
 
 update();
-
-let stream = null;
-
-async function startCamera(){
-
-    try{
-
-        stream = await navigator.mediaDevices.getUserMedia({
-            video:{
-                facingMode:"environment"
-            },
-            audio:false
-        });
-
-        camera.srcObject = stream;
-
-        addThought("I can now receive images from the camera.");
-
-    }catch(e){
-
-        alert("Camera permission denied.");
-
-    }
-
-}
-
-function aiLook(){
-
-    if(!stream){
-
-        alert("Start the camera first.");
-        return;
-
-    }
-
-    const video = document.getElementById("camera");
-    const canvas = document.getElementById("vision");
-    const ctx = canvas.getContext("2d");
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    ctx.drawImage(video,0,0);
-
-    document.getElementById("visionOutput").innerHTML =
-    "📷 The AI captured the current camera frame.<br><br>" +
-    "Image Size: " +
-    canvas.width + " × " + canvas.height +
-    "<br><br>" +
-    "Ready for computer vision analysis.";
-
-    addThought("I captured a new image from the camera.");
-
-}
-
-function worldCamera() {
-
-    const output = document.getElementById("thoughtBox");
-
-    if (!output) {
-        alert("thoughtBox not found.");
-        return;
-    }
-
-    if (typeof creations === "undefined") {
-        output.innerHTML = "<div class='card'>👁️ The AI world does not exist yet.</div>";
-        return;
-    }
-
-    if (creations.length === 0) {
-        output.innerHTML = "<div class='card'>👁️ I looked around my world. It is empty.</div>";
-        return;
-    }
-
-    let text = "<div class='card'><b>👁️ AI World Camera</b><br><br>";
-
-    creations.forEach(function(c) {
-        text += "I can see: <b>" + c.name + "</b><br>";
-    });
-
-    text += "</div>";
-
-    output.innerHTML = text;
-}
 </script>
 
 </body>
