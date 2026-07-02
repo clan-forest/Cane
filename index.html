@@ -1,278 +1,348 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>2D World AI</title>
-<style>
-body{margin:0;font-family:Arial;background:#070014;color:white;text-align:center}
-.app{max-width:900px;margin:15px auto;background:#111;padding:15px;border-radius:20px}
-canvas{background:#222;border-radius:15px;max-width:100%}
-button,input{padding:10px;margin:5px;border:0;border-radius:10px}
-button{background:#ff008c;color:white}
-#chat{height:170px;overflow:auto;background:#222;padding:10px;border-radius:12px;text-align:left}
-.bot,.user{margin:8px;padding:8px;border-radius:10px}
-.bot{background:#ffdd00;color:#111}
-.user{background:#00eaff;color:#111;text-align:right}
-</style>
-</head>
-<body>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Creation Maker</title>
 
-<div class="app">
-<h1>🎪 2D Image World AI</h1>
+<div class="box">
+  <h2>📷 AI Camera</h2>
 
-<input type="file" id="imageInput" accept="image/*">
-<button onclick="generateWorld()">Make 2D World</button>
-<button onclick="randomWorld()">Random World</button>
+  <video id="camera" autoplay playsinline muted
+         style="width:100%;border-radius:12px;"></video>
 
-<br>
-<canvas id="game" width="640" height="360"></canvas>
+  <canvas id="vision" style="display:none;"></canvas>
 
-<p>Move: WASD or arrow keys</p>
+  <br>
 
-<div id="chat">
-<div class="bot">Upload an image, then I will turn it into a 2D world!</div>
+  <button onclick="startCamera()">Start Camera</button>
+  <button onclick="aiLook()">AI Look</button>
+
+  <div id="visionOutput" class="card">
+    Camera not started.
+  </div>
 </div>
 
-<input id="textInput" placeholder="Ask the world AI...">
-<button onclick="send()">Send</button>
+<style>
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:linear-gradient(#080014,#26104d);
+  color:white;
+  text-align:center;
+}
+h1{margin:20px 5px 5px}
+p{color:#ddd}
+.box{
+  background:#17172b;
+  margin:14px auto;
+  padding:15px;
+  width:90%;
+  max-width:520px;
+  border-radius:16px;
+  box-shadow:0 0 12px black;
+}
+textarea,input{
+  width:90%;
+  padding:12px;
+  margin:7px;
+  border:none;
+  border-radius:10px;
+  font-size:16px;
+}
+button{
+  padding:12px 15px;
+  margin:5px;
+  border:none;
+  border-radius:10px;
+  background:#8b35ff;
+  color:white;
+  font-weight:bold;
+}
+button:active{transform:scale(.96)}
+.card{
+  background:#272747;
+  margin:10px;
+  padding:12px;
+  border-radius:12px;
+  text-align:left;
+}
+.small{font-size:13px;color:#bbb}
+</style>
+</head>
+
+<body>
+
+<h1>🤖 AI Creation Maker</h1>
+<p>The AI can learn, make items, see its creations, and upgrade them.</p>
+
+<div class="box">
+  <h2>🧠 Feed the AI</h2>
+  <textarea id="feedText" placeholder="Teach it anything. Example: Make a digital circus world with magical cats, portals, crystals, and strange rooms."></textarea>
+  <br>
+  <button onclick="feedAI()">Feed AI</button>
+</div>
+
+<div class="box">
+  <h2>📦 Add Your Own Item</h2>
+  <input id="itemName" placeholder="Item name">
+  <textarea id="itemPower" placeholder="What does it do?"></textarea>
+  <br>
+  <button onclick="addItem()">Add Item</button>
+</div>
+
+<div class="box">
+  <h2>⚙️ AI Buttons</h2>
+  <button onclick="makeItem()">AI Make Item</button>
+  <button onclick="makeIdea()">AI Make Idea</button>
+  <button onclick="seeCreations()">AI See Creations</button>
+  <button onclick="evolveCreation()">AI Upgrade Creation</button>
+  <button onclick="clearAll()">Reset</button>
+</div>
+
+<div class="box">
+  <h2>💭 AI Thoughts</h2>
+  <div id="thoughtBox">No thoughts yet.</div>
+</div>
+
+<div class="box">
+  <h2>🧠 AI Memory</h2>
+  <div id="memoryBox">No memory yet.</div>
+</div>
+
+<div class="box">
+  <h2>✨ AI Creations</h2>
+  <div id="creationBox">No creations yet.</div>
 </div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const imageInput = document.getElementById("imageInput");
-const chat = document.getElementById("chat");
-const textInput = document.getElementById("textInput");
+let memory = JSON.parse(localStorage.getItem("ai_memory")) || [];
+let creations = JSON.parse(localStorage.getItem("ai_creations")) || [];
+let thoughts = JSON.parse(localStorage.getItem("ai_thoughts")) || [];
 
-let keys = {};
-let tiles = [];
-let objects = [];
-let player = {x:300,y:170,w:20,h:20};
-let worldName = "Empty World";
-let theme = "circus";
-let mainColor = {r:120,g:70,b:200};
+const words = [
+  "portal","crystal","glitch","dream","shadow","button",
+  "cat","robot","circus","forest","machine","star","mirror",
+  "monster","cloud","clock","secret room","digital world"
+];
 
-const tileSize = 32;
-const cols = 20;
-const rows = 11;
+const powers = [
+  "opens a hidden area",
+  "creates a new item",
+  "protects the world",
+  "stores memories",
+  "turns ideas into objects",
+  "summons a helper",
+  "changes the room",
+  "makes characters smarter",
+  "repairs broken things",
+  "unlocks a new power",
+  "builds a tiny world"
+];
 
-function add(text,type){
-  const div=document.createElement("div");
-  div.className=type;
-  div.textContent=text;
-  chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
+function save(){
+  localStorage.setItem("ai_memory", JSON.stringify(memory));
+  localStorage.setItem("ai_creations", JSON.stringify(creations));
+  localStorage.setItem("ai_thoughts", JSON.stringify(thoughts));
 }
 
-function rand(n){return Math.floor(Math.random()*n)}
-function rgb(c){return "rgb("+c.r+","+c.g+","+c.b+")"}
-
-function analyzeImage(callback){
-  const file = imageInput.files[0];
-  if(!file){callback(null);return;}
-
-  const img = new Image();
-  const temp = document.createElement("canvas");
-  const tctx = temp.getContext("2d");
-
-  img.onload = function(){
-    temp.width = 80;
-    temp.height = 80;
-    tctx.drawImage(img,0,0,80,80);
-    const data = tctx.getImageData(0,0,80,80).data;
-
-    let r=0,g=0,b=0,count=0,bright=0;
-
-    for(let i=0;i<data.length;i+=4){
-      r+=data[i];
-      g+=data[i+1];
-      b+=data[i+2];
-      bright+=(data[i]+data[i+1]+data[i+2])/3;
-      count++;
-    }
-
-    r=Math.floor(r/count);
-    g=Math.floor(g/count);
-    b=Math.floor(b/count);
-    bright=Math.floor(bright/count);
-
-    callback({r,g,b,bright});
-  };
-
-  img.src = URL.createObjectURL(file);
+function random(list){
+  return list[Math.floor(Math.random() * list.length)];
 }
 
-function generateWorld(){
-  analyzeImage(function(color){
-    if(color){
-      mainColor = color;
+function addThought(text){
+  thoughts.unshift(text);
+  if(thoughts.length > 30) thoughts.pop();
+  save();
+  update();
+}
 
-      if(color.b > color.r && color.b > color.g) theme = "dream ocean arcade";
-      else if(color.g > color.r && color.g > color.b) theme = "glowing forest circus";
-      else if(color.r > color.g && color.r > color.b) theme = "danger carnival";
-      else theme = "glitch circus";
+function update(){
+  document.getElementById("memoryBox").innerHTML =
+    memory.length ? memory.map(m=>`<div class="card">🧠 ${m}</div>`).join("") : "No memory yet.";
 
-      if(color.bright < 80) theme = "dark backrooms maze";
-      if(color.bright > 190) theme = "bright candy circus";
-    }
+  document.getElementById("creationBox").innerHTML =
+    creations.length ? creations.map(c=>`
+      <div class="card">
+        <b>✨ ${c.name}</b>
+        <p>${c.power}</p>
+        <div class="small">Created from: ${c.source}</div>
+      </div>
+    `).join("") : "No creations yet.";
 
-    buildWorld();
-    add("I generated a 2D world: " + worldName, "bot");
+  document.getElementById("thoughtBox").innerHTML =
+    thoughts.length ? thoughts.map(t=>`<div class="card">💭 ${t}</div>`).join("") : "No thoughts yet.";
+}
+
+function feedAI(){
+  let text = document.getElementById("feedText").value.trim();
+  if(!text){ alert("Type something first."); return; }
+
+  memory.push(text);
+  document.getElementById("feedText").value = "";
+
+  addThought("I learned something new: " + text);
+  save();
+  update();
+}
+
+function addItem(){
+  let name = document.getElementById("itemName").value.trim();
+  let power = document.getElementById("itemPower").value.trim();
+
+  if(!name || !power){
+    alert("Add an item name and what it does.");
+    return;
+  }
+
+  creations.push({
+    name:name,
+    power:power,
+    source:"made by you"
   });
+
+  document.getElementById("itemName").value = "";
+  document.getElementById("itemPower").value = "";
+
+  addThought("I can see a new creation named " + name + ".");
+  save();
+  update();
 }
 
-function randomWorld(){
-  mainColor = {
-    r:rand(255),
-    g:rand(255),
-    b:rand(255)
+function makeItem(){
+  let learned = memory.length ? random(memory) : "a mysterious world";
+
+  let name = random(words).toUpperCase() + " " + random(words).toUpperCase();
+
+  let power = "This item can " + random(powers) +
+  ". It was inspired by: " + learned;
+
+  creations.push({
+    name:name,
+    power:power,
+    source:"AI made it"
+  });
+
+  addThought("I made a new item called " + name + ".");
+  save();
+  update();
+}
+
+function makeIdea(){
+  let learned = memory.length ? random(memory) : "nothing yet";
+  let creation = creations.length ? random(creations).name : "a new object";
+
+  let idea = "Make a world where " + creation +
+  " connects with a " + random(words) +
+  " and can " + random(powers) +
+  ". Use this knowledge: " + learned;
+
+  creations.push({
+    name:"AI Idea",
+    power:idea,
+    source:"AI idea"
+  });
+
+  addThought("I made an idea using my memory and my creations.");
+  save();
+  update();
+}
+
+function seeCreations(){
+  if(creations.length === 0){
+    addThought("I looked for creations, but I do not see any yet.");
+    return;
+  }
+
+  let list = creations.map(c=>c.name).join(", ");
+  addThought("I can see my creations: " + list + ".");
+}
+
+function evolveCreation(){
+  if(creations.length === 0){
+    addThought("I need a creation before I can upgrade one.");
+    return;
+  }
+
+  let old = random(creations);
+
+  let upgraded = {
+    name:"Upgraded " + old.name,
+    power:old.power + " Now it can also " + random(powers) + ".",
+    source:"upgraded from " + old.name
   };
-  const themes=["glitch circus","backrooms maze","candy carnival","pixel forest","dream arcade"];
-  theme = themes[rand(themes.length)];
-  buildWorld();
-  add("Random 2D world generated: " + worldName, "bot");
+
+  creations.push(upgraded);
+
+  addThought("I looked at " + old.name + " and upgraded it into " + upgraded.name + ".");
+  save();
+  update();
 }
 
-function buildWorld(){
-  worldName = "The " + theme;
-
-  tiles = [];
-  objects = [];
-
-  for(let y=0;y<rows;y++){
-    for(let x=0;x<cols;x++){
-      let type = "floor";
-
-      if(x===0 || y===0 || x===cols-1 || y===rows-1){
-        type = "wall";
-      } else if(Math.random() < 0.08){
-        type = "wall";
-      }
-
-      tiles.push({x,y,type});
-    }
+function clearAll(){
+  if(confirm("Reset all AI memory, thoughts, and creations?")){
+    memory = [];
+    creations = [];
+    thoughts = [];
+    save();
+    update();
   }
-
-  for(let i=0;i<15;i++){
-    objects.push({
-      x:rand(cols-2)+1,
-      y:rand(rows-2)+1,
-      type:["star","door","eye","clown"][rand(4)]
-    });
-  }
-
-  player.x = 300;
-  player.y = 170;
 }
 
-function drawWorld(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+update();
 
-  for(const tile of tiles){
-    let x = tile.x * tileSize;
-    let y = tile.y * tileSize;
+let stream = null;
 
-    if(tile.type === "wall"){
-      ctx.fillStyle = "rgb("+(mainColor.r/2)+","+(mainColor.g/2)+","+(mainColor.b/2)+")";
-    } else {
-      ctx.fillStyle = "rgb("+mainColor.r+","+mainColor.g+","+mainColor.b+")";
+async function startCamera(){
+
+    try{
+
+        stream = await navigator.mediaDevices.getUserMedia({
+            video:{
+                facingMode:"environment"
+            },
+            audio:false
+        });
+
+        camera.srcObject = stream;
+
+        addThought("I can now receive images from the camera.");
+
+    }catch(e){
+
+        alert("Camera permission denied.");
+
     }
 
-    ctx.fillRect(x,y,tileSize,tileSize);
-    ctx.strokeStyle = "rgba(255,255,255,0.15)";
-    ctx.strokeRect(x,y,tileSize,tileSize);
-  }
-
-  for(const obj of objects){
-    let x = obj.x * tileSize + 16;
-    let y = obj.y * tileSize + 16;
-
-    ctx.font = "22px Arial";
-    if(obj.type === "star") ctx.fillText("⭐",x-11,y+8);
-    if(obj.type === "door") ctx.fillText("🚪",x-11,y+8);
-    if(obj.type === "eye") ctx.fillText("👁️",x-11,y+8);
-    if(obj.type === "clown") ctx.fillText("🤡",x-11,y+8);
-  }
-
-  ctx.fillStyle = "white";
-  ctx.fillRect(player.x,player.y,player.w,player.h);
-
-  ctx.fillStyle = "black";
-  ctx.font = "14px Arial";
-  ctx.fillText(worldName,10,20);
 }
 
-function isWall(px,py){
-  let tx = Math.floor(px / tileSize);
-  let ty = Math.floor(py / tileSize);
+function aiLook(){
 
-  const tile = tiles.find(t=>t.x===tx && t.y===ty);
-  return tile && tile.type === "wall";
+    if(!stream){
+
+        alert("Start the camera first.");
+        return;
+
+    }
+
+    const video = document.getElementById("camera");
+    const canvas = document.getElementById("vision");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    ctx.drawImage(video,0,0);
+
+    document.getElementById("visionOutput").innerHTML =
+    "📷 The AI captured the current camera frame.<br><br>" +
+    "Image Size: " +
+    canvas.width + " × " + canvas.height +
+    "<br><br>" +
+    "Ready for computer vision analysis.";
+
+    addThought("I captured a new image from the camera.");
+
 }
-
-function movePlayer(){
-  let speed = 2;
-  let nx = player.x;
-  let ny = player.y;
-
-  if(keys["ArrowUp"] || keys["w"]) ny -= speed;
-  if(keys["ArrowDown"] || keys["s"]) ny += speed;
-  if(keys["ArrowLeft"] || keys["a"]) nx -= speed;
-  if(keys["ArrowRight"] || keys["d"]) nx += speed;
-
-  if(!isWall(nx,ny) && !isWall(nx+player.w,ny+player.h)){
-    player.x = nx;
-    player.y = ny;
-  }
-}
-
-function gameLoop(){
-  movePlayer();
-  drawWorld();
-  requestAnimationFrame(gameLoop);
-}
-
-function reply(msg){
-  msg = msg.toLowerCase();
-
-  if(msg.includes("new") || msg.includes("world")){
-    randomWorld();
-    return "A new 2D world has been created!";
-  }
-
-  if(msg.includes("where")){
-    return "You are inside " + worldName + ".";
-  }
-
-  if(msg.includes("quest")){
-    return "Quest: collect the stars, find the door, and avoid the strange eyes.";
-  }
-
-  if(msg.includes("door")){
-    return "The door may lead to another world... or just more circus nonsense.";
-  }
-
-  return "The world changes a little because you said that!";
-}
-
-function send(){
-  const text = textInput.value.trim();
-  if(!text)return;
-
-  add(text,"user");
-  textInput.value="";
-
-  setTimeout(()=>add(reply(text),"bot"),300);
-}
-
-document.addEventListener("keydown",e=>keys[e.key]=true);
-document.addEventListener("keyup",e=>keys[e.key]=false);
-
-textInput.addEventListener("keydown",e=>{
-  if(e.key==="Enter")send();
-});
-
-buildWorld();
-gameLoop();
 </script>
 
 </body>
