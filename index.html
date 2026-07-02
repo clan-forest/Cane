@@ -344,18 +344,34 @@ function aiLook(){
 
 }
 
-  function worldCamera(){
-  if(creations.length === 0){
-    addThought("I looked around my world, but it is empty.");
-    return;
-  }
+function worldCamera() {
 
-  let seen = creations
-    .slice(-5)
-    .map(c => c.name)
-    .join(", ");
+    const output = document.getElementById("thoughtBox");
 
-  addThought("Through my world camera, I can see: " + seen + ".");
+    if (!output) {
+        alert("thoughtBox not found.");
+        return;
+    }
+
+    if (typeof creations === "undefined") {
+        output.innerHTML = "<div class='card'>👁️ The AI world does not exist yet.</div>";
+        return;
+    }
+
+    if (creations.length === 0) {
+        output.innerHTML = "<div class='card'>👁️ I looked around my world. It is empty.</div>";
+        return;
+    }
+
+    let text = "<div class='card'><b>👁️ AI World Camera</b><br><br>";
+
+    creations.forEach(function(c) {
+        text += "I can see: <b>" + c.name + "</b><br>";
+    });
+
+    text += "</div>";
+
+    output.innerHTML = text;
 }
 </script>
 
